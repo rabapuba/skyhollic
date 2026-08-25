@@ -35,7 +35,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     const isBtcMode = chartMode === 'BTC_SPOT';
 
-    // Create chart with dark minimal theme
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 420,
@@ -119,7 +118,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     };
   }, [chartMode, displayStyle]);
 
-  // Handle data updates & Strike Price line
   useEffect(() => {
     if (!seriesRef.current || !data) return;
 
@@ -166,7 +164,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
-    // Subtle Strike Line handling (doesn't block candles)
     if (chartMode === 'BTC_SPOT' && strikePrice && strikePrice > 0 && seriesRef.current) {
       if (strikeLineRef.current) {
         seriesRef.current.removePriceLine(strikeLineRef.current);
@@ -176,19 +173,20 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         price: strikePrice,
         color: isUp ? 'rgba(0, 210, 106, 0.6)' : 'rgba(255, 59, 105, 0.6)',
         lineWidth: 1,
-        lineStyle: 3, // Dotted, non-intrusive
+        lineStyle: 3,
         axisLabelVisible: true,
         title: `STRIKE $${strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
       });
     }
   }, [data, chartMode, timeframe, displayStyle, strikePrice, lastPrice]);
 
+  const tfLabel = timeframe === '1m' ? '1 MENIT' : '5 MENIT';
+
   return (
-    <div className="relative w-full h-full flex flex-col bg-dark-bg">
-      {/* Floating Modern Header Control */}
+    <div className="relative w-full h-full flex flex-col bg-dark-bg notranslate" translate="no">
       <div className="absolute top-3 left-3 z-10 flex items-center space-x-2 bg-dark-card/90 backdrop-blur px-3 py-1.5 rounded-lg border border-dark-border shadow-lg">
         <span className="text-xs font-mono font-semibold text-slate-200">
-          {chartMode === 'BTC_SPOT' ? 'BTC/USD SPOT' : 'POLYMARKET UP TOKEN'}
+          {chartMode === 'BTC_SPOT' ? 'BTC/USD SPOT' : 'HARGA KONTRAK (¢)'} ({tfLabel})
         </span>
         <span className={`text-xs font-mono font-bold ${
           chartMode === 'BTC_SPOT' ? 'text-amber-400' : 'text-poly-green'
@@ -198,14 +196,13 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             : `${(lastPrice * 100).toFixed(1)}¢`}
         </span>
 
-        {/* Style Switcher: Area vs Candles */}
         <div className="ml-2 pl-2 border-l border-dark-border flex items-center space-x-1">
           <button
             onClick={() => setDisplayStyle('area')}
             className={`p-1 rounded transition-colors ${
               displayStyle === 'area' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
             }`}
-            title="Smooth Line Area Chart"
+            title="Grafik Garis Mulus (Smooth Line Area)"
           >
             <LineChart className="w-3.5 h-3.5" />
           </button>
@@ -214,7 +211,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             className={`p-1 rounded transition-colors ${
               displayStyle === 'candles' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
             }`}
-            title="Candlestick OHLC Chart"
+            title="Grafik Candlestick OHLC"
           >
             <BarChart2 className="w-3.5 h-3.5" />
           </button>
