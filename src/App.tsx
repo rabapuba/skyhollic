@@ -20,6 +20,7 @@ export function App() {
     downPrice,
     btcPrice,
     strikePrice,
+    predictedPrice,
     btcCandles1m,
     btcCandles5m,
     polyCandles1m,
@@ -28,6 +29,8 @@ export function App() {
     setTimeframe,
     chartMode,
     setChartMode,
+    showPrediction,
+    setShowPrediction,
     isLoading,
     wsConnected
   } = usePolymarketMarket();
@@ -42,7 +45,7 @@ export function App() {
   const currentSlug = `btc-updown-5m-${currentWindowTs}`;
 
   return (
-    <div className="min-h-screen bg-[#0a0d14] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0a0d14] text-slate-100 flex flex-col font-sans notranslate" translate="no">
       {/* Top Header & Timer Bar */}
       <HeaderTimer
         slug={currentSlug}
@@ -56,6 +59,8 @@ export function App() {
         setTimeframe={setTimeframe}
         chartMode={chartMode}
         setChartMode={setChartMode}
+        showPrediction={showPrediction}
+        setShowPrediction={setShowPrediction}
         wsConnected={wsConnected}
         isLoading={isLoading}
       />
@@ -86,6 +91,8 @@ export function App() {
                 chartMode={chartMode}
                 lastPrice={activePrice}
                 strikePrice={strikePrice}
+                predictedPrice={predictedPrice}
+                showPrediction={showPrediction}
               />
             )}
           </div>
