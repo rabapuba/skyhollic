@@ -1,6 +1,6 @@
 import React from 'react';
 import { TimeFrame, ChartMode } from '../types';
-import { Clock, TrendingUp, TrendingDown } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 
 interface HeaderTimerProps {
   slug: string;
@@ -14,6 +14,8 @@ interface HeaderTimerProps {
   setTimeframe: (tf: TimeFrame) => void;
   chartMode: ChartMode;
   setChartMode: (cm: ChartMode) => void;
+  showPrediction: boolean;
+  setShowPrediction: (sp: boolean) => void;
   wsConnected: boolean;
   isLoading: boolean;
 }
@@ -29,6 +31,8 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
   setTimeframe,
   chartMode,
   setChartMode,
+  showPrediction,
+  setShowPrediction,
   wsConnected,
   isLoading
 }) => {
@@ -104,8 +108,22 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
         </div>
       </div>
 
-      {/* Right section: Mode & Timeframe controls */}
+      {/* Right section: Prediction Toggle, Mode, Timeframe */}
       <div className="flex items-center space-x-3">
+        {/* 30s Prediction Line Toggle */}
+        <button
+          onClick={() => setShowPrediction(!showPrediction)}
+          className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono font-bold border transition-all ${
+            showPrediction
+              ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-sm shadow-amber-500/10'
+              : 'bg-dark-bg text-slate-500 border-dark-border hover:text-slate-300'
+          }`}
+          title="Toggle Garis Proyeksi 30-Detik (Kerlap-Kerlip)"
+        >
+          <Zap className={`w-3.5 h-3.5 ${showPrediction ? 'text-amber-400 animate-pulse' : ''}`} />
+          <span>PROYEKSI 30S: {showPrediction ? 'ON' : 'OFF'}</span>
+        </button>
+
         {/* Mode Switcher */}
         <div className="bg-dark-bg p-1 rounded-lg border border-dark-border flex items-center space-x-1">
           <button
@@ -130,7 +148,7 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
           </button>
         </div>
 
-        {/* Timeframe Switcher (1m vs 5m) */}
+        {/* Timeframe Switcher */}
         <div className="bg-dark-bg p-1 rounded-lg border border-dark-border flex items-center space-x-1">
           <button
             onClick={() => setTimeframe('1m')}
