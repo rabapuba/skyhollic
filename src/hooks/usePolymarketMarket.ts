@@ -17,7 +17,7 @@ import {
   fetchPricesHistory,
   CLOB_WS_URL
 } from '../services/polymarketApi';
-import { fetchBtcKlines } from '../services/binanceApi';
+import { fetchBtcKlines, BINANCE_AGG_TRADE_WS } from '../services/binanceApi';
 
 export function usePolymarketMarket() {
   const [currentWindowTs, setCurrentWindowTs] = useState<number>(() => get5MinWindowTimestamp());
@@ -31,14 +31,16 @@ export function usePolymarketMarket() {
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [timeframe, setTimeframe] = useState<TimeFrame>('1m');
   const [chartMode, setChartMode] = useState<ChartMode>('BTC_SPOT');
+  const [showPrediction, setShowPrediction] = useState<boolean>(true);
 
   // Live Contract YES / NO Prices
   const [upPrice, setUpPrice] = useState<number>(0.5);
   const [downPrice, setDownPrice] = useState<number>(0.5);
 
-  // BTC Spot Data
+  // BTC Spot Data & 30s Prediction Target
   const [btcPrice, setBtcPrice] = useState<number>(0);
   const [strikePrice, setStrikePrice] = useState<number>(0);
+  const [predictedPrice, setPredictedPrice] = useState<number>(0);
   const [btcCandles1m, setBtcCandles1m] = useState<OHLCData[]>([]);
   const [btcCandles5m, setBtcCandles5m] = useState<OHLCData[]>([]);
 
@@ -55,6 +57,9 @@ export function usePolymarketMarket() {
   const [trades, setTrades] = useState<TradeItem[]>([]);
   const [polyCandles1m, setPolyCandles1m] = useState<OHLCData[]>([]);
   const [polyCandles5m, setPolyCandles5m] = useState<OHLCData[]>([]);
+
+  // Rolling 15-second price queue for sub-second momentum velocity
+  const priceQueueRef = useRef<Array<{ time: number; price: number }>>([]);
 
   // 1. Timer ticker & auto window detector
   useEffect(() => {
@@ -77,7 +82,7 @@ export function usePolymarketMarket() {
     return () => clearInterval(interval);
   }, [currentWindowTs]);
 
-  // 2. Fetch BTC Spot Historical Candles & Live Binance WebSocket Stream
+  // 2. Sub-Second Binance @aggTrade Stream (10ms - 50ms Real-Time BTC Ticks)
   useEffect(() => {
     let isCancelled = false;
 
@@ -105,41 +110,69 @@ export function usePolymarketMarket() {
 
     loadBtcData();
 
-    const binanceWs = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@kline_1m');
+    // High frequency Binance aggTrade WebSocket (sub-second trades)
+    const binanceWs = new WebSocket(BINANCE_AGG_TRADE_WS);
 
     binanceWs.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.k) {
-          const k = data.k;
-          const timeSec = Math.floor(k.t / 1000);
-          const closePrice = parseFloat(k.c);
-          const openPrice = parseFloat(k.o);
-          const highPrice = parseFloat(k.h);
-          const lowPrice = parseFloat(k.l);
-          const vol = parseFloat(k.v);
+        if (data.p) {
+          const currentPrice = parseFloat(data.p);
+          const timeSec = Math.floor((data.T || Date.now()) / 1000);
 
-          setBtcPrice(closePrice);
+          setBtcPrice(currentPrice);
 
           if (timeSec >= currentWindowTs && strikePrice === 0) {
-            setStrikePrice(openPrice);
+            setStrikePrice(currentPrice);
           }
 
+          // Maintain rolling 15s queue for momentum calculation
+          const nowMs = Date.now();
+          priceQueueRef.current.push({ time: nowMs, price: currentPrice });
+          priceQueueRef.current = priceQueueRef.current.filter((item) => nowMs - item.time <= 15000);
+
+          if (priceQueueRef.current.length >= 2) {
+            const oldest = priceQueueRef.current[0];
+            const dtSec = (nowMs - oldest.time) / 1000;
+            if (dtSec > 0.5) {
+              const velocity = (currentPrice - oldest.price) / dtSec; // $ / sec
+              const projected = currentPrice + (velocity * 30);
+              setPredictedPrice(projected);
+            }
+          } else {
+            setPredictedPrice(currentPrice);
+          }
+
+          // Live tick into 1m candle
           const m1 = Math.floor(timeSec / 60) * 60;
           setBtcCandles1m((prev) => {
             if (prev.length === 0) return prev;
             const copy = [...prev];
             const lastIdx = copy.length - 1;
             if (copy[lastIdx].time === m1) {
-              copy[lastIdx] = { time: m1, open: openPrice, high: highPrice, low: lowPrice, close: closePrice, volume: vol };
+              const c = copy[lastIdx];
+              copy[lastIdx] = {
+                ...c,
+                high: Math.max(c.high, currentPrice),
+                low: Math.min(c.low, currentPrice),
+                close: currentPrice,
+                volume: c.volume + parseFloat(data.q || 0)
+              };
             } else {
-              copy.push({ time: m1, open: openPrice, high: highPrice, low: lowPrice, close: closePrice, volume: vol });
+              copy.push({
+                time: m1,
+                open: currentPrice,
+                high: currentPrice,
+                low: currentPrice,
+                close: currentPrice,
+                volume: parseFloat(data.q || 0)
+              });
             }
             return copy.slice(-120);
           });
         }
       } catch (e) {
-        console.error('Binance WS err:', e);
+        console.error('Binance AggTrade WS err:', e);
       }
     };
 
@@ -300,14 +333,12 @@ export function usePolymarketMarket() {
     if (!upTokenId) return;
 
     const syncPrices = async () => {
-      // 1. Fetch live CLOB Midpoint
       const mid = await fetchClobMidpoint(upTokenId);
       if (mid !== null) {
         setUpPrice(mid);
         setDownPrice(parseFloat((1 - mid).toFixed(3)));
         setOrderBook((prev) => ({ ...prev, lastPrice: mid }));
       } else {
-        // Fallback to Gamma API outcomePrices
         const slug = `btc-updown-5m-${currentWindowTs}`;
         const evt = await fetchEventBySlug(slug);
         if (evt && evt.markets && evt.markets.length > 0) {
@@ -330,7 +361,6 @@ export function usePolymarketMarket() {
         }
       }
 
-      // Sync recent trades if active
       if (activeMarket?.conditionId) {
         const latestTrades = await fetchTradesHistory(activeMarket.conditionId);
         if (latestTrades.length > 0) {
@@ -465,6 +495,7 @@ export function usePolymarketMarket() {
     downPrice,
     btcPrice,
     strikePrice,
+    predictedPrice,
     btcCandles1m,
     btcCandles5m,
     polyCandles1m,
@@ -473,6 +504,8 @@ export function usePolymarketMarket() {
     setTimeframe,
     chartMode,
     setChartMode,
+    showPrediction,
+    setShowPrediction,
     isLoading,
     wsConnected
   };
