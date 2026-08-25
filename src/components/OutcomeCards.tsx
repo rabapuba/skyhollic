@@ -19,68 +19,68 @@ export const OutcomeCards: React.FC<OutcomeCardsProps> = ({
   const isBtcUp = btcPrice >= strikePrice;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 font-sans">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 font-sans notranslate" translate="no">
       {/* UP Card */}
       <div className={`p-4 rounded-xl border transition-all ${
         isBtcUp
-          ? 'bg-poly-green/10 border-poly-green/40 shadow-lg shadow-poly-green/5'
+          ? 'bg-poly-green/10 border-poly-green/50 shadow-xl shadow-poly-green/10'
           : 'bg-dark-card border-dark-border hover:border-slate-700'
       }`}>
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-poly-green/20 text-poly-green flex items-center justify-center font-bold">
-              <TrendingUp className="w-4 h-4" />
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-poly-green/20 text-poly-green flex items-center justify-center font-black">
+              <TrendingUp className="w-5 h-5" />
             </div>
-            <span className="font-bold text-base text-slate-100">UP</span>
+            <span className="font-extrabold text-lg text-slate-100">UP (NAIK)</span>
           </div>
-          <span className="font-mono text-2xl font-black text-poly-green">
+          <span className="font-mono text-3xl font-black text-poly-green">
             {(upPrice * 100).toFixed(1)}¢
           </span>
         </div>
 
         {/* Probability bar */}
-        <div className="w-full bg-dark-bg h-2 rounded-full overflow-hidden border border-dark-border mb-2">
+        <div className="w-full bg-dark-bg h-2.5 rounded-full overflow-hidden border border-dark-border mb-2.5">
           <div
             className="bg-poly-green h-full transition-all duration-300 rounded-full"
             style={{ width: `${Math.max(5, Math.min(95, upPct))}%` }}
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-          <span>Chance: <strong className="text-slate-200">{upPct}%</strong></span>
-          <span>Wins if BTC ≥ ${strikePrice > 0 ? strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
+        <div className="flex items-center justify-between text-sm font-mono text-slate-300">
+          <span>Peluang: <strong className="text-white text-base font-extrabold">{upPct}%</strong></span>
+          <span>Syarat: BTC ≥ ${strikePrice > 0 ? strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
         </div>
       </div>
 
       {/* DOWN Card */}
       <div className={`p-4 rounded-xl border transition-all ${
         !isBtcUp
-          ? 'bg-poly-red/10 border-poly-red/40 shadow-lg shadow-poly-red/5'
+          ? 'bg-poly-red/10 border-poly-red/50 shadow-xl shadow-poly-red/10'
           : 'bg-dark-card border-dark-border hover:border-slate-700'
       }`}>
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-lg bg-poly-red/20 text-poly-red flex items-center justify-center font-bold">
-              <TrendingDown className="w-4 h-4" />
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-poly-red/20 text-poly-red flex items-center justify-center font-black">
+              <TrendingDown className="w-5 h-5" />
             </div>
-            <span className="font-bold text-base text-slate-100">DOWN</span>
+            <span className="font-extrabold text-lg text-slate-100">DOWN (TURUN)</span>
           </div>
-          <span className="font-mono text-2xl font-black text-poly-red">
+          <span className="font-mono text-3xl font-black text-poly-red">
             {(downPrice * 100).toFixed(1)}¢
           </span>
         </div>
 
         {/* Probability bar */}
-        <div className="w-full bg-dark-bg h-2 rounded-full overflow-hidden border border-dark-border mb-2">
+        <div className="w-full bg-dark-bg h-2.5 rounded-full overflow-hidden border border-dark-border mb-2.5">
           <div
             className="bg-poly-red h-full transition-all duration-300 rounded-full"
             style={{ width: `${Math.max(5, Math.min(95, downPct))}%` }}
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-          <span>Chance: <strong className="text-slate-200">{downPct}%</strong></span>
-          <span>Wins if BTC &lt; ${strikePrice > 0 ? strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
+        <div className="flex items-center justify-between text-sm font-mono text-slate-300">
+          <span>Peluang: <strong className="text-white text-base font-extrabold">{downPct}%</strong></span>
+          <span>Syarat: BTC &lt; ${strikePrice > 0 ? strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '---'}</span>
         </div>
       </div>
     </div>
