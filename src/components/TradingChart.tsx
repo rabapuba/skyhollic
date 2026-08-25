@@ -40,24 +40,24 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     const isBtcMode = chartMode === 'BTC_SPOT';
 
-    // Create chart with dark minimal theme and FULL interactive zoom & scroll controls
+    // Create chart with LARGE, HIGH-CONTRAST READABLE FONT (fontSize: 14)
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight || 420,
+      height: chartContainerRef.current.clientHeight || 450,
       layout: {
         background: { color: '#0a0d14' },
-        textColor: '#64748b',
-        fontSize: 11,
+        textColor: '#cbd5e1', // Slate 300 for high readability
+        fontSize: 14, // ENLARGED FONT SIZE
         fontFamily: "'JetBrains Mono', monospace",
       },
       grid: {
-        vertLines: { color: '#131926' },
-        horzLines: { color: '#131926' },
+        vertLines: { color: '#161e2e' },
+        horzLines: { color: '#161e2e' },
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: '#3b82f6', width: 1, style: 3 },
-        horzLine: { color: '#3b82f6', width: 1, style: 3 },
+        vertLine: { color: '#38bdf8', width: 1, style: 3 },
+        horzLine: { color: '#38bdf8', width: 1, style: 3 },
       },
       handleScale: {
         axisPressedMouseMove: true,
@@ -71,20 +71,20 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         vertTouchDrag: true,
       },
       rightPriceScale: {
-        borderColor: '#1e2638',
+        borderColor: '#334155',
         autoScale: true,
         borderVisible: true,
-        scaleMargins: { top: 0.15, bottom: 0.15 },
+        scaleMargins: { top: 0.18, bottom: 0.18 },
         alignLabels: true,
       },
       timeScale: {
-        borderColor: '#1e2638',
+        borderColor: '#334155',
         timeVisible: true,
         secondsVisible: true,
         borderVisible: true,
-        rightOffset: 12,
-        barSpacing: 8,
-        minBarSpacing: 0.5,
+        rightOffset: 14,
+        barSpacing: 9,
+        minBarSpacing: 1,
         fixLeftEdge: false,
         fixRightEdge: false,
       },
@@ -94,9 +94,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     if (displayStyle === 'area') {
       series = chart.addAreaSeries({
-        topColor: isBtcMode ? 'rgba(245, 158, 11, 0.35)' : 'rgba(0, 210, 106, 0.35)',
-        bottomColor: isBtcMode ? 'rgba(245, 158, 11, 0.0)' : 'rgba(0, 210, 106, 0.0)',
-        lineColor: isBtcMode ? '#f59e0b' : '#00d26a',
+        topColor: isBtcMode ? 'rgba(56, 189, 248, 0.4)' : 'rgba(0, 229, 255, 0.4)',
+        bottomColor: isBtcMode ? 'rgba(56, 189, 248, 0.0)' : 'rgba(0, 229, 255, 0.0)',
+        lineColor: isBtcMode ? '#38bdf8' : '#00e5ff',
         lineWidth: 2,
         priceFormat: isBtcMode
           ? { type: 'price', precision: 2, minMove: 0.01 }
@@ -188,40 +188,35 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
-    // Non-blocking Strike Line handling on right Y-axis scale
+    // DISTINCT COLOR 1: STRIKE PRICE LINE = ELECTRIC CYAN (#00e5ff)
     if (chartMode === 'BTC_SPOT' && strikePrice && strikePrice > 0 && seriesRef.current) {
       if (strikeLineRef.current) {
         seriesRef.current.removePriceLine(strikeLineRef.current);
       }
-      const isUp = lastPrice >= strikePrice;
       strikeLineRef.current = seriesRef.current.createPriceLine({
         price: strikePrice,
-        color: isUp ? 'rgba(0, 210, 106, 0.6)' : 'rgba(255, 59, 105, 0.6)',
-        lineWidth: 1,
-        lineStyle: 3, // Dotted line in background
+        color: '#00e5ff', // ELECTRIC CYAN - High contrast, distinct from prediction & price
+        lineWidth: 2,
+        lineStyle: 3, // Dotted line
         axisLabelVisible: true,
-        title: `STRIKE $${strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+        title: `STRIKE: $${strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
       });
     }
 
-    // 30-Second Predictive Projection Line (Garis Kerlap-Kerlip 30 Detik)
+    // DISTINCT COLOR 2: 30S PROJECTION LINE = NEON GOLD YELLOW (#ffea00)
     if (showPrediction && predictedPrice && predictedPrice > 0 && seriesRef.current) {
       if (predictionLineRef.current) {
         seriesRef.current.removePriceLine(predictionLineRef.current);
       }
 
       const isBtcMode = chartMode === 'BTC_SPOT';
-      const isPredictingUp = isBtcMode
-        ? predictedPrice >= (strikePrice || lastPrice)
-        : predictedPrice >= lastPrice;
-
       const titleText = isBtcMode
         ? `PROYEKSI 30S: $${predictedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         : `PROYEKSI 30S: ${(predictedPrice * 100).toFixed(1)}¢`;
 
       predictionLineRef.current = seriesRef.current.createPriceLine({
         price: predictedPrice,
-        color: isPredictingUp ? '#00d26a' : '#ff3b69',
+        color: '#ffea00', // NEON GOLD YELLOW - Instant visual distinction
         lineWidth: 2,
         lineStyle: 2, // Dashed line
         axisLabelVisible: true,
@@ -237,12 +232,12 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
   return (
     <div className="relative w-full h-full flex flex-col bg-dark-bg notranslate" translate="no">
-      {/* Floating Control Header */}
-      <div className="absolute top-3 left-3 z-10 flex items-center space-x-2 bg-dark-card/90 backdrop-blur px-3 py-1.5 rounded-lg border border-dark-border shadow-lg">
-        <span className="text-xs font-mono font-semibold text-slate-200">
+      {/* Floating Control Header - ENLARGED HIGH-CONTRAST FONT */}
+      <div className="absolute top-3 left-3 z-10 flex items-center space-x-3 bg-dark-card/95 backdrop-blur px-4 py-2 rounded-xl border border-dark-border shadow-xl">
+        <span className="text-sm font-mono font-bold text-slate-100">
           {chartMode === 'BTC_SPOT' ? 'BTC/USD SPOT' : 'HARGA KONTRAK (¢)'} ({tfLabel})
         </span>
-        <span className={`text-xs font-mono font-bold ${
+        <span className={`text-base font-mono font-black ${
           chartMode === 'BTC_SPOT' ? 'text-amber-400' : 'text-poly-green'
         }`}>
           {chartMode === 'BTC_SPOT'
@@ -250,30 +245,29 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             : `${(lastPrice * 100).toFixed(1)}¢`}
         </span>
 
-        {/* Style Switcher: Area vs Candles */}
-        <div className="ml-2 pl-2 border-l border-dark-border flex items-center space-x-1">
+        <div className="ml-3 pl-3 border-l border-dark-border flex items-center space-x-1.5">
           <button
             onClick={() => setDisplayStyle('area')}
-            className={`p-1 rounded transition-colors ${
-              displayStyle === 'area' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            className={`p-1.5 rounded-lg transition-colors ${
+              displayStyle === 'area' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Grafik Garis Mulus (Smooth Line Area)"
           >
-            <LineChart className="w-3.5 h-3.5" />
+            <LineChart className="w-4 h-4" />
           </button>
           <button
             onClick={() => setDisplayStyle('candles')}
-            className={`p-1 rounded transition-colors ${
-              displayStyle === 'candles' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+            className={`p-1.5 rounded-lg transition-colors ${
+              displayStyle === 'candles' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
             }`}
             title="Grafik Candlestick OHLC"
           >
-            <BarChart2 className="w-3.5 h-3.5" />
+            <BarChart2 className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div ref={chartContainerRef} className="w-full h-full min-h-[400px]" />
+      <div ref={chartContainerRef} className="w-full h-full min-h-[420px]" />
     </div>
   );
 };
