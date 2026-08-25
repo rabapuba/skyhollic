@@ -32,6 +32,26 @@ export async function fetchEventBySlug(slug: string): Promise<PolymarketEvent | 
 }
 
 /**
+ * Fetches live CLOB Midpoint price for a token.
+ */
+export async function fetchClobMidpoint(tokenId: string): Promise<number | null> {
+  try {
+    const res = await fetch(`${CLOB_API_BASE}/midpoint?token_id=${tokenId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.mid) {
+      const midVal = parseFloat(data.mid);
+      if (!isNaN(midVal) && midVal > 0) {
+        return midVal;
+      }
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
  * Fetches current CLOB order book snapshot.
  */
 export async function fetchOrderBook(tokenId: string): Promise<OrderBookState | null> {
@@ -45,12 +65,12 @@ export async function fetchOrderBook(tokenId: string): Promise<OrderBookState | 
 
     const bids = rawBids
       .map((b: any) => ({ price: parseFloat(b.price), size: parseFloat(b.size) }))
-      .filter((b: any) => b.price > 0.001 && b.price < 0.999)
+      .filter((b: any) => b.price >= 0.001 && b.price <= 0.999)
       .sort((a: any, b: any) => b.price - a.price);
 
     const asks = rawAsks
       .map((a: any) => ({ price: parseFloat(a.price), size: parseFloat(a.size) }))
-      .filter((a: any) => a.price > 0.001 && a.price < 0.999)
+      .filter((a: any) => a.price >= 0.001 && a.price <= 0.999)
       .sort((a: any, b: any) => a.price - b.price);
 
     const bestBid = bids[0]?.price || 0.5;
