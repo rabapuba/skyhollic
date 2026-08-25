@@ -1,6 +1,6 @@
 import React from 'react';
 import { TimeFrame, ChartMode } from '../types';
-import { Clock, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Clock, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface HeaderTimerProps {
   slug: string;
@@ -39,7 +39,7 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
   const isBtcAboveStrike = btcPrice >= strikePrice;
 
   return (
-    <header className="bg-dark-card border-b border-dark-border px-4 py-3 sticky top-0 z-30 flex flex-wrap items-center justify-between gap-4">
+    <header className="bg-dark-card border-b border-dark-border px-4 py-3 sticky top-0 z-30 flex flex-wrap items-center justify-between gap-4 notranslate" translate="no">
       {/* Left section: Title & BTC Live Price */}
       <div className="flex items-center space-x-3">
         <div className="w-9 h-9 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-xs">
@@ -78,7 +78,7 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
         <div className="hidden sm:flex items-center space-x-3 bg-dark-bg px-3 py-1.5 rounded-lg border border-dark-border">
           <div className="flex items-center space-x-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-poly-green" />
-            <span className="text-xs text-slate-400 font-mono">UP</span>
+            <span className="text-xs text-slate-400 font-mono">UP (YES)</span>
             <span className="font-mono text-sm font-bold text-poly-green">
               {(upPrice * 100).toFixed(1)}¢
             </span>
@@ -86,7 +86,7 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
           <div className="h-4 w-px bg-dark-border" />
           <div className="flex items-center space-x-1.5">
             <TrendingDown className="w-3.5 h-3.5 text-poly-red" />
-            <span className="text-xs text-slate-400 font-mono">DOWN</span>
+            <span className="text-xs text-slate-400 font-mono">DOWN (NO)</span>
             <span className="font-mono text-sm font-bold text-poly-red">
               {(downPrice * 100).toFixed(1)}¢
             </span>
@@ -104,9 +104,9 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
         </div>
       </div>
 
-      {/* Right section: Chart Mode, Timeframe, & Connection status */}
+      {/* Right section: Mode & Timeframe controls */}
       <div className="flex items-center space-x-3">
-        {/* Chart Mode Switcher */}
+        {/* Mode Switcher */}
         <div className="bg-dark-bg p-1 rounded-lg border border-dark-border flex items-center space-x-1">
           <button
             onClick={() => setChartMode('BTC_SPOT')}
@@ -126,28 +126,35 @@ export const HeaderTimer: React.FC<HeaderTimerProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            OPTION (¢)
+            KONTRAK (¢)
           </button>
         </div>
 
-        {/* Timeframe Switcher */}
+        {/* Timeframe Switcher (1m vs 5m) */}
         <div className="bg-dark-bg p-1 rounded-lg border border-dark-border flex items-center space-x-1">
-          {(['1m', '5m'] as TimeFrame[]).map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-2 py-1 rounded text-xs font-mono font-semibold transition-colors ${
-                timeframe === tf
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {tf.toUpperCase()}
-            </button>
-          ))}
+          <button
+            onClick={() => setTimeframe('1m')}
+            className={`px-2 py-1 rounded text-xs font-mono font-semibold transition-colors ${
+              timeframe === '1m'
+                ? 'bg-slate-700 text-white font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            1 MIN
+          </button>
+          <button
+            onClick={() => setTimeframe('5m')}
+            className={`px-2 py-1 rounded text-xs font-mono font-semibold transition-colors ${
+              timeframe === '5m'
+                ? 'bg-slate-700 text-white font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            5 MIN
+          </button>
         </div>
 
-        {/* WebSocket Connection Status Badge */}
+        {/* Connection status */}
         <div className="flex items-center space-x-1.5 text-xs font-mono px-2.5 py-1 rounded bg-dark-bg border border-dark-border">
           <span className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-poly-green animate-ping' : 'bg-amber-500'}`} />
           <span className={wsConnected ? 'text-poly-green' : 'text-amber-500'}>
