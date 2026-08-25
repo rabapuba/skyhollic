@@ -2,11 +2,12 @@ import { OHLCData } from '../types';
 
 export const BINANCE_REST_BASE = 'https://api.binance.com/api/v3';
 export const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/btcusdt@kline_1m';
+export const BINANCE_AGG_TRADE_WS = 'wss://stream.binance.com:9443/ws/btcusdt@aggTrade';
 
 /**
  * Fetches historical BTC/USD OHLC candles from Binance REST API.
  * @param interval '1m' | '5m'
- * @param limit number of candles (default 100)
+ * @param limit number of candles (default 120)
  */
 export async function fetchBtcKlines(interval: '1m' | '5m' = '1m', limit: number = 120): Promise<OHLCData[]> {
   try {
