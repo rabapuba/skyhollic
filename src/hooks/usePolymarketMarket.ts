@@ -11,6 +11,7 @@ import {
 import {
   get5MinWindowTimestamp,
   fetchEventBySlug,
+  fetchClobMidpoint,
   fetchOrderBook,
   fetchTradesHistory,
   fetchPricesHistory,
@@ -31,7 +32,7 @@ export function usePolymarketMarket() {
   const [timeframe, setTimeframe] = useState<TimeFrame>('1m');
   const [chartMode, setChartMode] = useState<ChartMode>('BTC_SPOT');
 
-  // Outcome Contract Prices (Gamma API exact parity)
+  // Live Contract YES / NO Prices
   const [upPrice, setUpPrice] = useState<number>(0.5);
   const [downPrice, setDownPrice] = useState<number>(0.5);
 
@@ -146,10 +147,15 @@ export function usePolymarketMarket() {
       isCancelled = true;
       binanceWs.close();
     };
-  }, [currentWindowTs]);
+  }, [currentWindowTs, strikePrice]);
 
-  // Helper to aggregate live option token tick into OHLC candles
+  // Helper to aggregate live option token tick into OHLC candles & update prices
   const processOptionTick = useCallback((price: number, size: number, timestampSec: number) => {
+    if (price > 0 && price < 1) {
+      setUpPrice(price);
+      setDownPrice(parseFloat((1 - price).toFixed(3)));
+    }
+
     const m1 = Math.floor(timestampSec / 60) * 60;
     setPolyCandles1m((prev) => {
       const copy = [...prev];
@@ -189,57 +195,26 @@ export function usePolymarketMarket() {
     });
   }, []);
 
-  // 3. Sync Event & Outcome Prices directly from Gamma API
-  const updateEventPrices = useCallback(async () => {
-    const slug = `btc-updown-5m-${currentWindowTs}`;
-    const evt = await fetchEventBySlug(slug);
-    if (!evt || !evt.markets || evt.markets.length === 0) return;
-
-    setEventData(evt);
-    const m = evt.markets[0];
-    setActiveMarket(m);
-
-    if (m.outcomePrices) {
-      try {
-        const prices = typeof m.outcomePrices === 'string'
-          ? JSON.parse(m.outcomePrices)
-          : m.outcomePrices;
-
-        if (Array.isArray(prices) && prices.length >= 2) {
-          const pUp = parseFloat(prices[0]);
-          const pDown = parseFloat(prices[1]);
-
-          setUpPrice(pUp);
-          setDownPrice(pDown);
-
-          setOrderBook((prev) => ({
-            ...prev,
-            lastPrice: pUp
-          }));
-        }
-      } catch (e) {
-        console.error('Error parsing outcomePrices:', e);
-      }
-    }
-  }, [currentWindowTs]);
-
-  // Initial Market Load
+  // 3. Initial Market Load
   useEffect(() => {
     let isCancelled = false;
 
     async function init() {
       setIsLoading(true);
-      await updateEventPrices();
-      if (isCancelled) return;
-
       const slug = `btc-updown-5m-${currentWindowTs}`;
       const evt = await fetchEventBySlug(slug);
+
+      if (isCancelled) return;
+
       if (!evt || !evt.markets || evt.markets.length === 0) {
         setIsLoading(false);
         return;
       }
 
+      setEventData(evt);
       const m = evt.markets[0];
+      setActiveMarket(m);
+
       let tokenUp = '';
       let tokenDown = '';
 
@@ -260,6 +235,25 @@ export function usePolymarketMarket() {
       setDownTokenId(tokenDown);
 
       if (tokenUp) {
+        const mid = await fetchClobMidpoint(tokenUp);
+        if (mid !== null && !isCancelled) {
+          setUpPrice(mid);
+          setDownPrice(parseFloat((1 - mid).toFixed(3)));
+        } else if (m.outcomePrices) {
+          try {
+            const prices = typeof m.outcomePrices === 'string'
+              ? JSON.parse(m.outcomePrices)
+              : m.outcomePrices;
+
+            if (Array.isArray(prices) && prices.length >= 2) {
+              const pUp = parseFloat(prices[0]);
+              const pDown = parseFloat(prices[1]);
+              setUpPrice(pUp);
+              setDownPrice(pDown);
+            }
+          } catch (e) {}
+        }
+
         const book = await fetchOrderBook(tokenUp);
         if (book && !isCancelled) setOrderBook(book);
 
@@ -299,24 +293,59 @@ export function usePolymarketMarket() {
     return () => {
       isCancelled = true;
     };
-  }, [currentWindowTs, updateEventPrices]);
+  }, [currentWindowTs]);
 
-  // High Frequency 2-second Poll for Gamma API Outcome Prices & Trades
+  // 4. High-Frequency 1-Second Continuous Live Price Synchronization
   useEffect(() => {
-    const interval = setInterval(async () => {
-      await updateEventPrices();
+    if (!upTokenId) return;
+
+    const syncPrices = async () => {
+      // 1. Fetch live CLOB Midpoint
+      const mid = await fetchClobMidpoint(upTokenId);
+      if (mid !== null) {
+        setUpPrice(mid);
+        setDownPrice(parseFloat((1 - mid).toFixed(3)));
+        setOrderBook((prev) => ({ ...prev, lastPrice: mid }));
+      } else {
+        // Fallback to Gamma API outcomePrices
+        const slug = `btc-updown-5m-${currentWindowTs}`;
+        const evt = await fetchEventBySlug(slug);
+        if (evt && evt.markets && evt.markets.length > 0) {
+          const m = evt.markets[0];
+          if (m.outcomePrices) {
+            try {
+              const prices = typeof m.outcomePrices === 'string'
+                ? JSON.parse(m.outcomePrices)
+                : m.outcomePrices;
+
+              if (Array.isArray(prices) && prices.length >= 2) {
+                const pUp = parseFloat(prices[0]);
+                const pDown = parseFloat(prices[1]);
+                setUpPrice(pUp);
+                setDownPrice(pDown);
+                setOrderBook((prev) => ({ ...prev, lastPrice: pUp }));
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      // Sync recent trades if active
       if (activeMarket?.conditionId) {
         const latestTrades = await fetchTradesHistory(activeMarket.conditionId);
         if (latestTrades.length > 0) {
           setTrades(latestTrades);
         }
       }
-    }, 2000);
+    };
+
+    syncPrices();
+    const interval = setInterval(syncPrices, 1000);
 
     return () => clearInterval(interval);
-  }, [updateEventPrices, activeMarket?.conditionId]);
+  }, [upTokenId, currentWindowTs, activeMarket?.conditionId]);
 
-  // 4. Polymarket CLOB WebSocket
+  // 5. Polymarket CLOB WebSocket for Immediate Instant Tick Updates
   useEffect(() => {
     if (!upTokenId) return;
 
@@ -357,6 +386,13 @@ export function usePolymarketMarket() {
                 })).sort((a: any, b: any) => a.price - b.price);
 
                 if (bids.length > 0 || asks.length > 0) {
+                  const bestBid = bids[0]?.price;
+                  const bestAsk = asks[0]?.price;
+                  if (bestBid && bestAsk) {
+                    const mid = (bestBid + bestAsk) / 2;
+                    processOptionTick(mid, 50, nowSec);
+                  }
+
                   setOrderBook((prev) => ({
                     ...prev,
                     bids,
