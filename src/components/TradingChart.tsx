@@ -9,6 +9,8 @@ interface TradingChartProps {
   chartMode: ChartMode;
   lastPrice: number;
   strikePrice?: number;
+  predictedPrice?: number;
+  showPrediction?: boolean;
 }
 
 export const TradingChart: React.FC<TradingChartProps> = ({
@@ -16,12 +18,15 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   timeframe,
   chartMode,
   lastPrice,
-  strikePrice
+  strikePrice,
+  predictedPrice,
+  showPrediction = true
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | ISeriesApi<'Area'> | null>(null);
   const strikeLineRef = useRef<IPriceLine | null>(null);
+  const predictionLineRef = useRef<IPriceLine | null>(null);
 
   const [displayStyle, setDisplayStyle] = useState<'area' | 'candles'>('area');
 
@@ -35,6 +40,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     const isBtcMode = chartMode === 'BTC_SPOT';
 
+    // Create chart with dark minimal theme and FULL interactive zoom & scroll controls
     const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: chartContainerRef.current.clientHeight || 420,
@@ -53,17 +59,34 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         vertLine: { color: '#3b82f6', width: 1, style: 3 },
         horzLine: { color: '#3b82f6', width: 1, style: 3 },
       },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
       rightPriceScale: {
         borderColor: '#1e2638',
         autoScale: true,
         borderVisible: true,
         scaleMargins: { top: 0.15, bottom: 0.15 },
+        alignLabels: true,
       },
       timeScale: {
         borderColor: '#1e2638',
         timeVisible: true,
-        secondsVisible: false,
+        secondsVisible: true,
         borderVisible: true,
+        rightOffset: 12,
+        barSpacing: 8,
+        minBarSpacing: 0.5,
+        fixLeftEdge: false,
+        fixRightEdge: false,
       },
     });
 
@@ -114,6 +137,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       chartRef.current = null;
       seriesRef.current = null;
       strikeLineRef.current = null;
+      predictionLineRef.current = null;
       isInitializedRef.current = false;
     };
   }, [chartMode, displayStyle]);
@@ -164,6 +188,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       }
     }
 
+    // Non-blocking Strike Line handling on right Y-axis scale
     if (chartMode === 'BTC_SPOT' && strikePrice && strikePrice > 0 && seriesRef.current) {
       if (strikeLineRef.current) {
         seriesRef.current.removePriceLine(strikeLineRef.current);
@@ -173,17 +198,46 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         price: strikePrice,
         color: isUp ? 'rgba(0, 210, 106, 0.6)' : 'rgba(255, 59, 105, 0.6)',
         lineWidth: 1,
-        lineStyle: 3,
+        lineStyle: 3, // Dotted line in background
         axisLabelVisible: true,
         title: `STRIKE $${strikePrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
       });
     }
-  }, [data, chartMode, timeframe, displayStyle, strikePrice, lastPrice]);
+
+    // 30-Second Predictive Projection Line (Garis Kerlap-Kerlip 30 Detik)
+    if (showPrediction && predictedPrice && predictedPrice > 0 && seriesRef.current) {
+      if (predictionLineRef.current) {
+        seriesRef.current.removePriceLine(predictionLineRef.current);
+      }
+
+      const isBtcMode = chartMode === 'BTC_SPOT';
+      const isPredictingUp = isBtcMode
+        ? predictedPrice >= (strikePrice || lastPrice)
+        : predictedPrice >= lastPrice;
+
+      const titleText = isBtcMode
+        ? `PROYEKSI 30S: $${predictedPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : `PROYEKSI 30S: ${(predictedPrice * 100).toFixed(1)}¢`;
+
+      predictionLineRef.current = seriesRef.current.createPriceLine({
+        price: predictedPrice,
+        color: isPredictingUp ? '#00d26a' : '#ff3b69',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed line
+        axisLabelVisible: true,
+        title: titleText,
+      });
+    } else if (!showPrediction && predictionLineRef.current && seriesRef.current) {
+      seriesRef.current.removePriceLine(predictionLineRef.current);
+      predictionLineRef.current = null;
+    }
+  }, [data, chartMode, timeframe, displayStyle, strikePrice, lastPrice, predictedPrice, showPrediction]);
 
   const tfLabel = timeframe === '1m' ? '1 MENIT' : '5 MENIT';
 
   return (
     <div className="relative w-full h-full flex flex-col bg-dark-bg notranslate" translate="no">
+      {/* Floating Control Header */}
       <div className="absolute top-3 left-3 z-10 flex items-center space-x-2 bg-dark-card/90 backdrop-blur px-3 py-1.5 rounded-lg border border-dark-border shadow-lg">
         <span className="text-xs font-mono font-semibold text-slate-200">
           {chartMode === 'BTC_SPOT' ? 'BTC/USD SPOT' : 'HARGA KONTRAK (¢)'} ({tfLabel})
@@ -196,6 +250,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
             : `${(lastPrice * 100).toFixed(1)}¢`}
         </span>
 
+        {/* Style Switcher: Area vs Candles */}
         <div className="ml-2 pl-2 border-l border-dark-border flex items-center space-x-1">
           <button
             onClick={() => setDisplayStyle('area')}
